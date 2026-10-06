@@ -17,6 +17,11 @@ main{max-width:1180px;margin:auto;padding:16px 20px 40px;display:grid;grid-templ
 label{display:block;margin:12px 0 5px;color:#d9deea;font-weight:650}
 input,select,button{width:100%;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quality-row{display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:center}
+.quality-row input[type="range"]{padding:0}
+.quality-number{display:flex;align-items:center;gap:5px}
+.quality-number input{padding:9px 7px;text-align:right}
+.quality-number span{color:var(--muted);font-weight:700}
 .check{display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--muted)}
 .check input{width:auto}
 button{cursor:pointer;font-weight:750;margin-top:10px}
@@ -44,7 +49,12 @@ button{cursor:pointer;font-weight:750;margin-top:10px}
 .status{margin-top:8px;color:var(--muted);font-size:13px}
 .empty{padding:50px 10px;text-align:center;color:var(--muted)}
 .badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:#253044;color:#c9d8ff;font-size:11px;vertical-align:middle}
-@media(max-width:800px){main{grid-template-columns:1fr}.controls{position:static}}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 28px;color:var(--muted);font-size:12px;text-align:center}
+footer .footer-inner{border-top:1px solid var(--line);padding-top:18px}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+footer .privacy{margin-top:4px}
+@media(max-width:800px){main{grid-template-columns:1fr}.controls{position:static}.quality-row{grid-template-columns:1fr 78px}}
 </style>
 </head>
 <body>
@@ -88,8 +98,15 @@ button{cursor:pointer;font-weight:750;margin-top:10px}
     <option value="image/png">PNG</option>
   </select>
 
-  <label>品質 <span id="qv">85</span>%</label>
-  <input id="quality" type="range" min="20" max="100" value="85">
+  <label>品質</label>
+  <div class="quality-row">
+    <input id="quality" type="range" min="20" max="100" step="1" value="85" aria-label="品質スライダー">
+    <div class="quality-number">
+      <input id="qualityNumber" type="number" min="20" max="100" step="1" value="85" inputmode="numeric" aria-label="品質の数値入力">
+      <span>%</span>
+    </div>
+  </div>
+  <div class="help">バーでも数字でも調整できます（20〜100%）。</div>
 
   <div class="check">
     <input id="showGuide" type="checkbox" checked>
@@ -123,6 +140,13 @@ button{cursor:pointer;font-weight:750;margin-top:10px}
   <div id="grid" class="grid"><div class="empty">まだ画像がありません 🖼️</div></div>
 </section>
 </main>
+
+<footer>
+  <div class="footer-inner">
+    <div><strong>IMAGE FORGE 0.2</strong> · Made by Raika &amp; Rei · <a href="https://github.com/raika-rei-lab/image-forge" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+    <div class="privacy">画像はブラウザ内で処理され、外部サーバーへ送信されません。</div>
+  </div>
+</footer>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -196,6 +220,7 @@ function render(){
     const thumb = document.createElement("div");
     thumb.className = "thumb" + ((fit==="contain" && format!=="image/jpeg") ? " checker" : "");
     thumb.style.aspectRatio = ratio;
+    if(fit==="contain" && format==="image/jpeg") thumb.style.background = "#fff";
 
     const img = document.createElement("img");
     img.src = previewUrl(f);
@@ -255,6 +280,8 @@ function applyPreset(){
   if(!p){
     $("#presetNote").textContent = "幅・高さ・形式などを自由に設定できます。";
     $("#safeNote").style.display = "none";
+    $("#showGuide").disabled = true;
+    $("#showGuide").checked = false;
     updateFitHelp();
     render();
     return;
@@ -265,7 +292,7 @@ function applyPreset(){
   $("#fit").value = p.fit;
   $("#format").value = p.format;
   $("#quality").value = p.q;
-  $("#qv").textContent = p.q;
+  $("#qualityNumber").value = p.q;
   $("#presetNote").textContent = p.note;
   $("#safeNote").style.display = p.safe ? "block" : "none";
   $("#showGuide").disabled = !p.safe;
@@ -288,7 +315,22 @@ $("#clear").onclick = ()=>{
   render();
   $("#status").textContent = "一覧をクリアしました";
 };
-$("#quality").oninput = e=>$("#qv").textContent = e.target.value;
+function setQuality(value, source){
+  let q = Number(value);
+  if(!Number.isFinite(q)) return;
+  q = Math.min(100, Math.max(20, Math.round(q)));
+  $("#quality").value = q;
+  $("#qualityNumber").value = q;
+  if(source==="number") $("#qualityNumber").value = q;
+}
+
+$("#quality").oninput = e=>setQuality(e.target.value,"range");
+$("#qualityNumber").oninput = e=>{
+  if(e.target.value==="") return;
+  const q = Number(e.target.value);
+  if(Number.isFinite(q) && q>=20 && q<=100) $("#quality").value = Math.round(q);
+};
+$("#qualityNumber").onchange = e=>setQuality(e.target.value || 85,"number");
 $("#preset").onchange = applyPreset;
 $("#fit").onchange = ()=>{updateFitHelp();render();};
 $("#format").onchange = render;
